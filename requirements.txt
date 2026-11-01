@@ -16,3 +16,6 @@ pyarrow
 datasets
 # only needed for the web app
 gradio
+# only needed to rebuild the browser model (build_web_model.py)
+onnx
+onnxruntime

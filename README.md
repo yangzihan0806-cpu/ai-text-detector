@@ -6,6 +6,9 @@ is turned into an **AI-generated-text detector**: the model and training loop st
 book (pretrained GPT-2 small, all layers frozen except the last transformer block, the final
 LayerNorm and a new 2-class output head); only the data changes.
 
+**Try it in your browser:** https://yangzihan0806-cpu.github.io/ai-text-detector/
+(the model runs locally in the page; pasted text is never uploaded)
+
 **Headline results**
 
 | | HAP-E test (in-domain) | HC3 test (never seen) |
@@ -92,6 +95,25 @@ of human texts are flagged.
 The ranking transfers, the probability scale does not: thresholds must be re-calibrated on the target
 domain, and short texts are much less reliable.
 
+## Web version (`docs/`, GitHub Pages)
+
+The detector also runs entirely in the browser, so it can be hosted as a static page with no server.
+
+- `build_web_model.py` exports the fine-tuned model to ONNX (input: token ids, output: last-token
+  logits), stores the MatMul weights in 8 bits (weight-only, blocks of 32) and the token embedding in
+  fp16, and splits the 177 MB result into two files under GitHub's 100 MB limit.
+  Plain dynamic int8 quantization was tried first and broke the model (accuracy 91% → 75%);
+  weight-only 8-bit keeps it intact: on 420 HAP-E test texts the accuracy is unchanged (90.95%),
+  AUC 0.9668 vs 0.9671, and 99.5% of verdicts at the 0.817 threshold are the same.
+- `docs/detector.js` is a line-by-line port of `clean_text` and `sentence_chunks`; on 1,804 raw texts it
+  produces exactly the same cleaned text and token chunks as Python. The GPT-2 tokenizer
+  ([js-tiktoken](https://github.com/dqbd/tiktoken), bundled with esbuild from `tools/tokenizer_entry.js`)
+  matched Python tiktoken on 226,029 tokens with no differences.
+- `docs/index.html` runs the model with [onnxruntime-web](https://onnxruntime.ai/) (WebAssembly).
+  In Chromium its P(AI) matched the Python ONNX pipeline to within 5e-7 and the original PyTorch model to
+  within 0.021 on 27 test texts, with no change of verdict. The model is downloaded once (177 MB)
+  and kept in the browser's cache.
+
 ## Limits
 
 English only; trained on ~500-word passages; never saw newer models (GPT-5, Claude, Gemini, ...) or
@@ -144,7 +166,8 @@ python prepare_hc3.py --out_dir data/hc3         # downloads the HC3 QA files fr
 | `compare_models.py` | AUC, tuned thresholds, detection @5% FPR, paired bootstrap |
 | `eval_hc3.py` | cross-data-set test on HC3 |
 | `detect.py` | command-line detector (sentence-aligned 256-token chunks, averaged P(AI)) |
-| `app.py` | Gradio web app |
+| `app.py` | Gradio web app (needs a Python server) |
+| `build_web_model.py`, `docs/` | browser version for GitHub Pages |
 
 ## Credits
 

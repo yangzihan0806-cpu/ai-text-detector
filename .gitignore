@@ -14,3 +14,5 @@ accuracy-plot.pdf
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+model_fp32.onnx
+node_modules/

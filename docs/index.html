@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Text Detector</title>
+<meta name="description" content="A GPT-2 model fine-tuned to tell human writing from AI writing. Runs entirely in your browser.">
+<style>
+  :root {
+    --paper: #f5f6f8;
+    --sheet: #ffffff;
+    --ink: #1c2230;
+    --ink-soft: #4a5263;
+    --rule: #d3d8e0;
+    --human: #1f7a6b;
+    --human-tint: rgba(31, 122, 107, .16);
+    --ai: #b4316b;
+    --ai-tint: rgba(180, 49, 107, .18);
+    --unsure: #6b7385;
+    --unsure-tint: rgba(107, 115, 133, .16);
+    --focus: #2f5fd0;
+    --serif: Charter, "Bitstream Charter", "Iowan Old Style", "Sitka Text", Cambria, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #12161f;
+      --sheet: #1a1f2b;
+      --ink: #e6e9ef;
+      --ink-soft: #a9b0bf;
+      --rule: #333b4b;
+      --human: #4fc2ae;
+      --human-tint: rgba(79, 194, 174, .20);
+      --ai: #ef6aa3;
+      --ai-tint: rgba(239, 106, 163, .22);
+      --unsure: #9aa2b4;
+      --unsure-tint: rgba(154, 162, 180, .18);
+      --focus: #8fb0ff;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--paper); }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 16px/1.55 var(--sans);
+  }
+  main { max-width: 44rem; margin: 0 auto; padding: 3.5rem 1rem 4rem; }
+  h1 {
+    font: 600 2.1rem/1.15 var(--serif); letter-spacing: -.01em; margin: 0 0 .6rem;
+  }
+  .lede { margin: 0 0 2rem; color: var(--ink-soft); max-width: 36rem; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  textarea {
+    display: block; width: 100%; min-height: 16rem; resize: vertical;
+    padding: 1rem 1.1rem; border: 1px solid var(--rule); border-radius: 6px;
+    background: var(--sheet); color: var(--ink);
+    font: 1.06rem/1.7 var(--serif);
+  }
+  textarea::placeholder { color: var(--ink-soft); opacity: .8; }
+  textarea:focus-visible, button:focus-visible, summary:focus-visible, a:focus-visible {
+    outline: 2px solid var(--focus); outline-offset: 2px;
+  }
+  .controls { display: flex; align-items: center; gap: .75rem; margin-top: .75rem; flex-wrap: wrap; }
+  .count { color: var(--ink-soft); font-size: .9rem; margin-right: auto; font-variant-numeric: tabular-nums; }
+  button {
+    font: 600 .98rem/1 var(--sans); border-radius: 6px; cursor: pointer;
+    padding: .75rem 1.2rem; border: 1px solid transparent;
+  }
+  .primary { background: var(--ink); color: var(--paper); }
+  .primary:disabled { opacity: .45; cursor: default; }
+  .quiet { background: transparent; color: var(--ink-soft); border-color: var(--rule); }
+
+  .status { margin: 1rem 0 0; font-size: .9rem; color: var(--ink-soft); min-height: 1.4em; }
+  .bar { height: 4px; background: var(--rule); border-radius: 2px; overflow: hidden; margin-top: .4rem; }
+  .bar > span { display: block; height: 100%; width: 0; background: var(--ink-soft); transition: width .2s linear; }
+  .status.error { color: var(--ai); }
+
+  #result { margin-top: 2.75rem; }
+  #result[hidden] { display: none; }
+  .verdict { font: 600 1.7rem/1.2 var(--serif); margin: 0; }
+  .verdict.ai { color: var(--ai); } .verdict.human { color: var(--human); } .verdict.unsure { color: var(--unsure); }
+  .score { margin: .35rem 0 1.4rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  .scale { position: relative; margin: 0 0 2.4rem; }
+  .track { display: flex; height: 10px; border-radius: 5px; overflow: hidden; }
+  .track .h { background: var(--human-tint); } .track .u { background: var(--unsure-tint); } .track .a { background: var(--ai-tint); }
+  .needle {
+    position: absolute; top: -6px; width: 4px; height: 22px; margin-left: -2px;
+    background: var(--ink); border-radius: 2px; transition: left .5s cubic-bezier(.2,.8,.2,1);
+  }
+  .tick { position: absolute; top: 14px; transform: translateX(-50%); font-size: .78rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .ends { display: flex; justify-content: space-between; font-size: .85rem; color: var(--ink-soft); margin-top: 1.6rem; }
+  .note { font-size: .92rem; color: var(--ink-soft); margin: 0 0 .5rem; max-width: 38rem; }
+  .warn { font-size: .92rem; margin: .8rem 0 0; padding-left: .8rem; border-left: 3px solid var(--unsure); }
+
+  h2 { font: 600 1.15rem/1.3 var(--sans); margin: 2.6rem 0 .3rem; }
+  .marked {
+    font: 1.06rem/1.85 var(--serif); margin-top: 1rem; padding: 1.2rem 1.3rem;
+    background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px;
+  }
+  .marked mark {
+    color: inherit; padding: .12em 0; border-radius: 2px;
+    box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  }
+  .marked .p {
+    font: 600 .72rem/1 var(--sans); font-variant-numeric: tabular-nums; vertical-align: .35em;
+    margin: 0 .35em 0 .25em; padding: .15em .35em; border-radius: 3px; color: var(--sheet);
+  }
+  .marked .skip { color: var(--ink-soft); }
+  .legend { display: flex; gap: 1.2rem; flex-wrap: wrap; font-size: .85rem; color: var(--ink-soft); margin-top: .6rem; }
+  .legend i { display: inline-block; width: .9em; height: .9em; border-radius: 2px; vertical-align: -.1em; margin-right: .35em; }
+
+  details { margin-top: 3rem; border-top: 1px solid var(--rule); padding-top: 1rem; }
+  summary { cursor: pointer; font-weight: 600; }
+  details p, details li { color: var(--ink-soft); font-size: .95rem; max-width: 38rem; }
+  details ul { padding-left: 1.2rem; }
+  a { color: inherit; text-underline-offset: 2px; }
+  footer { margin-top: 2.5rem; font-size: .85rem; color: var(--ink-soft); }
+
+  @media (max-width: 520px) {
+    main { padding-top: 2rem; }
+    h1 { font-size: 1.7rem; }
+    .verdict { font-size: 1.45rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .needle, .bar > span { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Is this text AI-written?</h1>
+  <p class="lede">A GPT-2 model fine-tuned to tell human writing from AI writing.
+    It runs <strong>entirely in your browser</strong>: your text is never uploaded.</p>
+
+  <textarea id="text" spellcheck="false" aria-label="Text to check"
+    placeholder="Paste an English text here. 150 words or more works best."></textarea>
+  <div class="controls">
+    <span class="count" id="count">0 words</span>
+    <button class="quiet" id="clear" type="button">Clear</button>
+    <button class="primary" id="check" type="button" disabled>Check text</button>
+  </div>
+  <div class="status" id="status" role="status" aria-live="polite">
+    The model (177 MB) downloads once when you start typing or pasting; after that it loads from your browser.
+  </div>
+
+  <section id="result" hidden aria-live="polite">
+    <p class="verdict" id="verdict"></p>
+    <p class="score" id="score"></p>
+    <div class="scale" aria-hidden="true">
+      <div class="track">
+        <span class="h" style="width:50%"></span><span class="u" style="width:31.7%"></span><span class="a" style="width:18.3%"></span>
+      </div>
+      <span class="needle" id="needle" style="left:0%"></span>
+      <span class="tick" style="left:50%">0.5</span>
+      <span class="tick" style="left:81.7%">0.817</span>
+      <div class="ends"><span>Human</span><span>AI</span></div>
+    </div>
+    <p class="note">Below 0.5 reads as human, 0.817 or above as AI, and anything in between is too close to call.
+      The 0.817 line was set so that only 5% of human texts in the test set cross it.</p>
+    <div id="warnings"></div>
+
+    <h2>Score by section</h2>
+    <p class="note">Long texts are scored in sections of about 190 words, and the result above is their average.
+      The text is shown after the same clean-up the model sees.</p>
+    <div class="marked" id="marked"></div>
+    <div class="legend">
+      <span><i style="background:var(--human-tint)"></i>reads as human</span>
+      <span><i style="background:var(--unsure-tint)"></i>unclear</span>
+      <span><i style="background:var(--ai-tint)"></i>reads as AI</span>
+    </div>
+  </section>
+
+  <details>
+    <summary>How it works, how accurate it is, and its limits</summary>
+    <p><strong>Model.</strong> GPT-2 small (124M parameters), pretrained by OpenAI and fine-tuned for
+      classification as in chapter 6 of <em>Build a Large Language Model (From Scratch)</em> by Sebastian Raschka.
+      Only the last transformer block, the final LayerNorm and a new two-way output layer were trained.</p>
+    <p><strong>Training data.</strong> The <a href="https://huggingface.co/datasets/browndw/human-ai-parallel-corpus">HAP-E corpus</a>:
+      human passages next to continuations of the same passages written by GPT-4o, GPT-4o-mini and Llama-3 (8B and 70B).
+      Formatting differences between the two sources were removed so the model has to learn the writing itself.</p>
+    <p><strong>Accuracy.</strong> On held-out HAP-E texts the ROC AUC is 0.97. Texts from chat models are caught
+      about 95% of the time; texts from Llama-3 base models only 67–77% of the time. On a data set the model never saw
+      (HC3, 2022 ChatGPT answers) the AUC is 0.99, but about 1 in 10 human answers crossed the 0.817 line.
+      This web version stores the weights in 8 bits to make the download smaller; on 420 test texts it gives the same verdict as the original model 99.5% of the time, with the same accuracy.</p>
+    <p><strong>Limits.</strong></p>
+    <ul>
+      <li>English only. Trained on passages of about 500 words; short texts are unreliable.</li>
+      <li>It never saw newer models (GPT-5, Claude, Gemini) or AI text that a person edited or paraphrased.</li>
+      <li>Some human writing will be marked as AI. Do not use this result on its own to accuse anyone of using AI.</li>
+    </ul>
+  </details>
+
+  <footer>
+    Code, data and full results:
+    <a href="https://github.com/yangzihan0806-cpu/ai-text-detector">github.com/yangzihan0806-cpu/ai-text-detector</a>
+  </footer>
+</main>
+
+<script src="tokenizer.bundle.js"></script>
+<script src="detector.js"></script>
+<script src="ort/ort.wasm.min.js"></script>
+<script>
+(() => {
+  "use strict";
+  const AI_T = 0.817, HUMAN_T = 0.5, SHORT_TOKENS = 200, MAX_CHARS = 20000;
+  const MODEL_PARTS = ["model/model.onnx.part0", "model/model.onnx.part1"];
+  const MODEL_BYTES = 176731992;
+  const CACHE = "ai-text-detector-model-v1";
+
+  const $ = (id) => document.getElementById(id);
+  const textEl = $("text"), checkBtn = $("check"), statusEl = $("status");
+  const enc = window.gpt2Tokenizer;
+
+  ort.env.wasm.wasmPaths = new URL("ort/", location.href).href;
+  ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
+
+  let session = null, loading = null;
+
+  function setStatus(html, progress, isError) {
+    statusEl.classList.toggle("error", !!isError);
+    statusEl.innerHTML = html + (progress == null ? "" :
+      `<div class="bar"><span style="width:${(progress * 100).toFixed(1)}%"></span></div>`);
+  }
+
+  async function fetchPart(url, onBytes) {
+    let cache = null;
+    try { cache = await caches.open(CACHE); } catch (e) { /* no Cache API (private mode etc.) */ }
+    if (cache) {
+      const hit = await cache.match(url);
+      if (hit) { const b = new Uint8Array(await hit.arrayBuffer()); onBytes(b.length); return b; }
+    }
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`could not download ${url} (HTTP ${res.status})`);
+    const reader = res.body.getReader();
+    const parts = []; let n = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      parts.push(value); n += value.length; onBytes(value.length);
+    }
+    const buf = new Uint8Array(n); let o = 0;
+    for (const p of parts) { buf.set(p, o); o += p.length; }
+    if (cache) { try { await cache.put(url, new Response(buf)); } catch (e) { /* quota: fine */ } }
+    return buf;
+  }
+
+  function loadModel() {
+    if (loading) return loading;
+    loading = (async () => {
+      let got = 0;
+      const tick = (n) => {
+        got += n;
+        setStatus(`Downloading the model: ${Math.round(got / 1e6)} of ${Math.round(MODEL_BYTES / 1e6)} MB`, got / MODEL_BYTES);
+      };
+      setStatus("Downloading the model…", 0);
+      const bufs = [];
+      for (const url of MODEL_PARTS) bufs.push(await fetchPart(url, tick));
+      const model = new Uint8Array(bufs.reduce((s, b) => s + b.length, 0));
+      let o = 0; for (const b of bufs) { model.set(b, o); o += b.length; }
+      setStatus("Starting the model…", 1);
+      session = await ort.InferenceSession.create(model, {
+        executionProviders: ["wasm"], graphOptimizationLevel: "all",
+      });
+      setStatus("Model ready.");
+      updateButton();
+    })().catch((err) => {
+      loading = null;
+      setStatus(`The model could not be loaded: ${err.message}. Reload the page to try again.`, null, true);
+      throw err;
+    });
+    return loading;
+  }
+
+  async function probAI(ids) {
+    const input = new ort.Tensor("int64", BigInt64Array.from(ids, (x) => BigInt(x)), [1, ids.length]);
+    const out = await session.run({ input_ids: input });
+    const [a, b] = out.logits.data;
+    const m = Math.max(a, b);
+    return Math.exp(b - m) / (Math.exp(a - m) + Math.exp(b - m));
+  }
+
+  // scores a text exactly like detect.py: clean -> sentence chunks -> mean P(AI)
+  async function score(raw, onChunk) {
+    await loadModel();
+    const text = Detector.cleanText(raw.slice(0, MAX_CHARS));
+    if (!text) return null;
+    const nTokens = enc.encode(text, [], []).length;
+    const chunks = Detector.sentenceChunks(text, enc);
+    const scored = chunks.filter((c) => !c.skipped);
+    for (let i = 0; i < scored.length; i++) {
+      if (onChunk) onChunk(i, scored.length);
+      scored[i].p = await probAI(scored[i].ids);
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    const p = scored.reduce((s, c) => s + c.p, 0) / scored.length;
+    return { p, chunks, nTokens };
+  }
+  window.__score = score;   // for automated testing
+
+  const words = (s) => (s.trim().match(/\S+/g) || []).length;
+  function updateButton() {
+    const n = words(textEl.value);
+    $("count").textContent = `${n} word${n === 1 ? "" : "s"}`;
+    checkBtn.disabled = n < 5;
+  }
+
+  const band = (p) => p >= AI_T ? "ai" : p < HUMAN_T ? "human" : "unsure";
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function render(r) {
+    const b = band(r.p);
+    const v = $("verdict");
+    v.className = "verdict " + b;
+    v.textContent = b === "ai" ? "Likely AI-written" : b === "human" ? "Likely human-written" : "Too close to call";
+    const scored = r.chunks.filter((c) => !c.skipped);
+    $("score").textContent = `Probability of AI: ${r.p.toFixed(3)}` +
+      (scored.length > 1 ? ` (average of ${scored.length} sections)` : "");
+    $("needle").style.left = (r.p * 100).toFixed(1) + "%";
+
+    const warn = [];
+    if (r.nTokens < SHORT_TOKENS) {
+      warn.push(`This text is only about ${Math.round(r.nTokens * 0.75)} words. The model learned from ~500-word passages, so treat this result as a rough guess.`);
+    }
+    if (r.chunks.some((c) => c.truncated)) {
+      warn.push("One sentence was longer than a section can hold, so only its beginning was scored.");
+    }
+    $("warnings").innerHTML = warn.map((w) => `<p class="warn">${esc(w)}</p>`).join("");
+
+    const colorOf = { ai: "var(--ai)", human: "var(--human)", unsure: "var(--unsure)" };
+    const tintOf = { ai: "var(--ai-tint)", human: "var(--human-tint)", unsure: "var(--unsure-tint)" };
+    $("marked").innerHTML = r.chunks.map((c) => {
+      if (c.skipped) return `<span class="skip">${esc(c.text)} <em>(too short to score on its own)</em></span>`;
+      const cb = band(c.p);
+      return `<mark style="background:${tintOf[cb]}">${esc(c.text)}</mark><span class="p" style="background:${colorOf[cb]}" title="Probability of AI for this section">${c.p.toFixed(2)}</span>`;
+    }).join(" ");
+    $("result").hidden = false;
+  }
+
+  textEl.addEventListener("input", () => { updateButton(); if (textEl.value.trim()) loadModel().catch(() => {}); });
+  textEl.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !checkBtn.disabled) checkBtn.click();
+  });
+  $("clear").addEventListener("click", () => {
+    textEl.value = ""; updateButton(); $("result").hidden = true; textEl.focus();
+  });
+  checkBtn.addEventListener("click", async () => {
+    checkBtn.disabled = true;
+    try {
+      const r = await score(textEl.value, (i, n) => setStatus(n > 1 ? `Checking section ${i + 1} of ${n}…` : "Checking…"));
+      if (!r) { setStatus("There is no text left to check after clean-up. Paste a longer English text.", null, true); return; }
+      setStatus("Done. Scored in your browser; nothing was uploaded.");
+      render(r);
+      $("result").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    } catch (err) {
+      if (session) setStatus(`Checking failed: ${err.message}`, null, true);
+    } finally {
+      updateButton();
+    }
+  });
+  updateButton();
+})();
+</script>
+</body>
+</html>

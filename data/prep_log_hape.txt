@@ -1,0 +1,13 @@
+raw rows: 66320
+sources: {'gpt-4o-2024-08-06': 8290, 'gpt-4o-mini-2024-07-18': 8290, 'chunk_1': 8290, 'chunk_2': 8290, 'Meta-Llama-3-70B-Instruct': 8290, 'Meta-Llama-3-70B': 8290, 'Meta-Llama-3-8B-Instruct': 8290, 'Meta-Llama-3-8B': 8290}
+genres: {'spok': 13768, 'blog': 12208, 'fic': 11160, 'news': 10576, 'acad': 9816, 'tvm': 8792}
+dropped refusals / too short (<230 words) / duplicates: 2818
+usable documents (human + >=1 AI): 8276
+paired rows: 16552  labels: {0: 8276, 1: 8276}
+AI models in pairs: {'Meta-Llama-3-70B-Instruct': 1380, 'Meta-Llama-3-8B': 1380, 'Meta-Llama-3-70B': 1379, 'Meta-Llama-3-8B-Instruct': 1379, 'gpt-4o-2024-08-06': 1379, 'gpt-4o-mini-2024-07-18': 1379}
+train.csv: 11580 rows  {0: 5790, 1: 5790}
+train_small.csv: 2000 rows  {0: 1000, 1: 1000}
+validation.csv: 1650 rows  {0: 825, 1: 825}
+test.csv: 3322 rows  {0: 1661, 1: 1661}
+documents shared by train and test: 0
+median words  human: 476  AI: 525

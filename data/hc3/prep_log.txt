@@ -1,0 +1,10 @@
+raw rows: 30900  label counts: {0: 20988, 1: 9912}
+dropped AI refusals / 'as an AI' disclaimers: 2
+dropped texts shorter than 10 words: 825
+dropped exact duplicates: 707
+near-duplicate clusters (cos >= 0.8, size > 1): 69
+after balancing: {0: 9826, 1: 9826}
+train.csv: 13756 rows  {0: 6878, 1: 6878}
+validation.csv: 1964 rows  {0: 982, 1: 982}
+test.csv: 3932 rows  {0: 1966, 1: 1966}
+train_small.csv: 2000 rows  {1: 1000, 0: 1000}

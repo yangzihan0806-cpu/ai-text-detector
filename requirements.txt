@@ -1,0 +1,18 @@
+# training / evaluation / detection
+torch
+tiktoken
+pandas
+numpy
+matplotlib
+scikit-learn
+# only needed to download the original GPT-2 weights (gpt_download.py, from the book)
+tensorflow
+tqdm
+requests
+# only needed to rebuild the data sets
+scipy
+nltk
+pyarrow
+datasets
+# only needed for the web app
+gradio

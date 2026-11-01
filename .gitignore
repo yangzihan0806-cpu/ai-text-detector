@@ -1,0 +1,16 @@
+# model weights (too big for git: download from the GitHub Release instead)
+*.pth
+gpt2/
+# raw HAP-E download
+*.parquet
+# run outputs
+run_log.txt
+preds_*.csv
+hc3_preds_*.csv
+threshold.json
+loss-plot.pdf
+accuracy-plot.pdf
+# python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/

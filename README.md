@@ -116,8 +116,9 @@ The detector also runs entirely in the browser, so it can be hosted as a static 
 
 ## Limits
 
-English only; trained on ~500-word passages; never saw newer models (GPT-5, Claude, Gemini, ...) or
-human-edited / paraphrased AI text; on HC3 about 1 in 10 human answers was flagged.
+English only; trained on ~500-word passages; never saw newer models (GPT-6, Claude Fable, ...) or
+human-edited / paraphrased AI text, especially well-prompted text after human revision; on HC3 about 1 in 10 human answers was flagged.
+Generally works best when recognizing GPT-based content.
 **Do not use this detector on its own to accuse anyone of using AI.**
 
 ## How to run
